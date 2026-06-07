@@ -27,38 +27,31 @@
           <div class="ov-grid" id="ovGrid"></div>
         </div>
 
-        <!-- API Football -->
-        <div class="tab-c" id="t-api-football">
-          <h2 style="margin-bottom:14px">Lịch World Cup API</h2>
-          <div class="wp-grid">
-            <div class="wp-card">
-              <h4>Đồng bộ dữ liệu</h4>
-              <p style="margin-bottom:10px; color:var(--text3);">Cập nhật lịch thi đấu mới nhất từ API-FOOTBALL.</p>
-              <div id="syncStatus" style="margin-bottom:10px;">Đang tải thông tin...</div>
-              <button class="btn btn-p" onclick="syncApiFootball()">Đồng bộ lịch thi đấu</button>
-              <button class="btn btn-s" onclick="clearDemoData()" style="margin-left:8px;">Xóa dữ liệu demo</button>
+        <!-- Match Management -->
+        <div class="tab-c" id="t-matches">
+          <h2 style="margin-bottom:14px">Quản lý trận đấu</h2>
+          <div class="wp-card" style="margin-bottom: 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+              <p style="color:var(--text3);margin:0;">Thêm, sửa, xóa các trận đấu và cập nhật tỉ số thủ công.</p>
+              <button class="btn btn-p" onclick="openMatchModal()">+ Thêm trận đấu</button>
             </div>
-            <div class="wp-card">
-              <h4>Tìm kiếm League ID</h4>
-              <p style="margin-bottom:10px; color:var(--text3);">Tìm mã League của World Cup để cấu hình trong file .env.</p>
-              <button class="btn btn-s" onclick="searchLeagueId()">Tìm World Cup League ID</button>
-              <div id="leagueSearchResults" style="margin-top:10px; max-height:200px; overflow-y:auto; font-size:0.9em;"></div>
-            </div>
-            
-            <div class="wp-card" style="grid-column:1/-1">
-              <h4>Kiểm tra & Debug API</h4>
-              <div style="display:flex; gap:8px; margin-top:10px;">
-                <button class="btn btn-s" onclick="testApi()">Kiểm tra API</button>
-                <button class="btn btn-s" onclick="viewRawApi()">Xem dữ liệu thô API</button>
-              </div>
-              <div id="apiDebugResults" style="margin-top:10px; padding:10px; background:var(--bg2); border-radius:4px; max-height:300px; overflow-y:auto; font-family:monospace; font-size:0.85em; display:none;"></div>
-            </div>
-
-            <div class="wp-card" style="grid-column:1/-1">
-              <h4>Import dữ liệu thủ công (Official JSON)</h4>
-              <p style="margin-bottom:10px; color:var(--text3);">Nếu API-FOOTBALL chưa trả về đúng lịch, có thể tải lên file JSON lịch thi đấu chính thức từ FIFA.</p>
-              <input type="file" id="importJsonFile" accept=".json" class="fc" style="margin-bottom:10px;">
-              <button class="btn btn-p" onclick="importOfficialJson()">Import JSON</button>
+            <div class="a-table-w">
+              <table class="a-table">
+                <thead>
+                  <tr>
+                    <th>STT/Vòng</th>
+                    <th>Thời gian (VN)</th>
+                    <th>Đội nhà</th>
+                    <th>Tỉ số</th>
+                    <th>Đội khách</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="matchesTableBody">
+                  <tr><td colspan="7" style="text-align:center">Đang tải...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -103,7 +96,67 @@
     </div>
   </main>
 
-  <!-- No Match Modal anymore -->
+  <!-- Match Modal -->
+  <div class="modal-ov" id="matchModal">
+    <div class="modal">
+      <div class="modal-h">
+        <h3 id="mmTitle">Thêm / Sửa trận đấu</h3>
+        <button class="modal-x" onclick="closeMatchModal()">&times;</button>
+      </div>
+      <div class="modal-b">
+        <input type="hidden" id="mmId">
+        <div class="f-row">
+          <div class="fg"><label>STT / Số trận</label><input type="number" class="fc" id="mmMatchNo"></div>
+          <div class="fg"><label>Vòng đấu</label><input type="text" class="fc" id="mmRound" placeholder="Vòng bảng, Vòng 16 đội..."></div>
+        </div>
+        <div class="f-row">
+          <div class="fg"><label>Bảng</label><input type="text" class="fc" id="mmGroup" placeholder="Bảng A"></div>
+          <div class="fg"><label>Sân vận động</label><input type="text" class="fc" id="mmVenue"></div>
+        </div>
+        <div class="f-row">
+          <div class="fg"><label>Ngày (VN)</label><input type="text" class="fc" id="mmDateVietnam" placeholder="DD/MM/YYYY"></div>
+          <div class="fg"><label>Giờ (VN)</label><input type="time" class="fc" id="mmTimeVietnam"></div>
+        </div>
+        
+        <hr style="border-color:var(--border); margin:15px 0;">
+        <h4 style="margin-bottom:10px; font-size:0.9em; color:var(--green)">Đội nhà</h4>
+        <div class="f-row">
+          <div class="fg"><label>Tên Đội</label><input type="text" class="fc" id="mmHomeName"></div>
+          <div class="fg"><label>Mã Đội</label><input type="text" class="fc" id="mmHomeCode" placeholder="VN"></div>
+        </div>
+        <div class="f-row">
+          <div class="fg"><label>URL Logo/Cờ</label><input type="text" class="fc" id="mmHomeLogo"></div>
+          <div class="fg"><label>Bàn thắng</label><input type="number" class="fc" id="mmHomeScore"></div>
+        </div>
+
+        <hr style="border-color:var(--border); margin:15px 0;">
+        <h4 style="margin-bottom:10px; font-size:0.9em; color:var(--green)">Đội khách</h4>
+        <div class="f-row">
+          <div class="fg"><label>Tên Đội</label><input type="text" class="fc" id="mmAwayName"></div>
+          <div class="fg"><label>Mã Đội</label><input type="text" class="fc" id="mmAwayCode" placeholder="TH"></div>
+        </div>
+        <div class="f-row">
+          <div class="fg"><label>URL Logo/Cờ</label><input type="text" class="fc" id="mmAwayLogo"></div>
+          <div class="fg"><label>Bàn thắng</label><input type="number" class="fc" id="mmAwayScore"></div>
+        </div>
+
+        <hr style="border-color:var(--border); margin:15px 0;">
+        <div class="fg">
+          <label>Trạng thái</label>
+          <select class="fc" id="mmStatus">
+            <option value="NS">Chưa đá (NS)</option>
+            <option value="LIVE">Đang đá (LIVE)</option>
+            <option value="FT">Đã kết thúc (FT)</option>
+            <option value="TBD">Chờ xác định (TBD)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-f">
+        <button class="btn btn-s" onclick="closeMatchModal()">Hủy</button>
+        <button class="btn btn-p" onclick="saveMatch()">Lưu trận đấu</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/main.js"></script>

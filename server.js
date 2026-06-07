@@ -441,6 +441,46 @@ app.post('/api/worldcup/import-official-json', authMW, hostOnly, (req, res) => {
   }
 });
 
+// ==================== MATCHES CRUD (host only) ====================
+app.post('/api/worldcup/matches', authMW, hostOnly, (req, res) => {
+  const mCache = readJSON('worldcup-matches.json');
+  if (!mCache) return res.status(500).json({ error: 'Data not initialized' });
+  const newMatch = req.body;
+  newMatch.id = 'match-' + uuidv4();
+  mCache.data.push(newMatch);
+  writeJSON('worldcup-matches.json', mCache);
+  res.json({ success: true, match: newMatch });
+});
+
+app.put('/api/worldcup/matches/:id', authMW, hostOnly, (req, res) => {
+  const mCache = readJSON('worldcup-matches.json');
+  if (!mCache) return res.status(500).json({ error: 'Data not initialized' });
+  const index = mCache.data.findIndex(m => m.id === req.params.id);
+  if (index === -1) return res.status(404).json({ error: 'Không tìm thấy trận đấu' });
+  
+  mCache.data[index] = { ...mCache.data[index], ...req.body, id: req.params.id };
+  writeJSON('worldcup-matches.json', mCache);
+  
+  // If this is the current room match, broadcast update
+  const room = readJSON('room.json');
+  if (room && room.isOpen && room.currentMatchId === req.params.id) {
+    io.emit('room:matchChanged', { currentMatchId: room.currentMatchId });
+  }
+  
+  res.json({ success: true, match: mCache.data[index] });
+});
+
+app.delete('/api/worldcup/matches/:id', authMW, hostOnly, (req, res) => {
+  const mCache = readJSON('worldcup-matches.json');
+  if (!mCache) return res.status(500).json({ error: 'Data not initialized' });
+  const index = mCache.data.findIndex(m => m.id === req.params.id);
+  if (index === -1) return res.status(404).json({ error: 'Không tìm thấy trận đấu' });
+  
+  mCache.data.splice(index, 1);
+  writeJSON('worldcup-matches.json', mCache);
+  res.json({ success: true });
+});
+
 // ==================== ROOMS ====================
 app.post('/api/rooms', authMW, hostOnly, (req, res) => {
   const currentMatchId = req.body.currentMatchId;

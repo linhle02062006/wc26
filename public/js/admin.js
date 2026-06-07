@@ -38,7 +38,7 @@ function buildAdminNav() {
 function buildSidebar() {
   const tabs = [
     ['overview','Tổng quan','layout'],
-    ['api-football','Lịch WC API','calendar'],
+    ['matches','Quản lý trận đấu','calendar'],
     ['room','Phòng Xem','monitor'],
     ['guests','Tài khoản','users'],
     ['settings','Cài đặt','settings']
@@ -70,7 +70,7 @@ async function loadAll() {
   loadSettings();
 }
 
-// === API Football Matches ===
+// === Match Management ===
 async function loadMatches() {
   const r = await fetch('/api/worldcup/matches');
   const data = await r.json();
@@ -87,107 +87,165 @@ async function loadMatches() {
     rmSel.innerHTML = '<option value="">-- Chọn trận đấu --</option>' + aMatches.map(m => `<option value="${m.id}">${m.home?.name || 'TBD'} vs ${m.away?.name || 'TBD'} (${m.timeVietnam || ''} ${m.dateVietnam || ''})</option>`).join('');
     rmSel.value = v;
   }
+
+  renderMatchesTable();
 }
 
-async function syncApiFootball() {
-  document.getElementById('syncStatus').textContent = 'Đang đồng bộ...';
+function renderMatchesTable() {
+  const tb = document.getElementById('matchesTableBody');
+  if (!tb) return;
+  if (!aMatches || aMatches.length === 0) {
+    tb.innerHTML = '<tr><td colspan="7" style="text-align:center">Chưa có dữ liệu.</td></tr>';
+    return;
+  }
+  
+  tb.innerHTML = aMatches.map((m, i) => {
+    const homeScore = m.home?.score !== undefined ? m.home.score : '-';
+    const awayScore = m.away?.score !== undefined ? m.away.score : '-';
+    const status = m.statusShort || 'NS';
+    
+    return `
+      <tr>
+        <td><strong>${m.matchNo || ''}</strong><br><span style="font-size:0.8em;color:var(--text3)">${m.round || ''}</span></td>
+        <td>${m.dateVietnam || ''}<br><strong style="color:var(--green)">${m.timeVietnam || ''}</strong></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${m.home?.logo ? `<img src="${m.home.logo}" width="20" height="15" style="border-radius:2px;object-fit:cover">` : ''}
+            <span>${m.home?.name || 'TBD'}</span>
+          </div>
+        </td>
+        <td style="text-align:center;font-weight:bold;font-size:1.1em">${homeScore} - ${awayScore}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${m.away?.logo ? `<img src="${m.away.logo}" width="20" height="15" style="border-radius:2px;object-fit:cover">` : ''}
+            <span>${m.away?.name || 'TBD'}</span>
+          </div>
+        </td>
+        <td><span class="badge ${status==='LIVE'?'badge-live':status==='FT'?'badge-fin':''}">${status}</span></td>
+        <td>
+          <button class="btn btn-s btn-xs" onclick="editMatch('${m.id}')">Sửa</button>
+          <button class="btn btn-d btn-xs" onclick="deleteMatch('${m.id}')">Xóa</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openMatchModal(id = null) {
+  document.getElementById('matchModal').classList.add('open');
+  if (id) {
+    document.getElementById('mmTitle').textContent = 'Sửa trận đấu';
+    const m = aMatches.find(x => x.id === id);
+    if (!m) return;
+    document.getElementById('mmId').value = m.id;
+    document.getElementById('mmMatchNo').value = m.matchNo || '';
+    document.getElementById('mmRound').value = m.round || '';
+    document.getElementById('mmGroup').value = m.group || '';
+    document.getElementById('mmVenue').value = m.venue || '';
+    document.getElementById('mmDateVietnam').value = m.dateVietnam || '';
+    document.getElementById('mmTimeVietnam').value = m.timeVietnam || '';
+    
+    document.getElementById('mmHomeName').value = m.home?.name || '';
+    document.getElementById('mmHomeCode').value = m.home?.code || '';
+    document.getElementById('mmHomeLogo').value = m.home?.logo || '';
+    document.getElementById('mmHomeScore').value = m.home?.score !== undefined ? m.home.score : '';
+    
+    document.getElementById('mmAwayName').value = m.away?.name || '';
+    document.getElementById('mmAwayCode').value = m.away?.code || '';
+    document.getElementById('mmAwayLogo').value = m.away?.logo || '';
+    document.getElementById('mmAwayScore').value = m.away?.score !== undefined ? m.away.score : '';
+    
+    document.getElementById('mmStatus').value = m.statusShort || 'NS';
+  } else {
+    document.getElementById('mmTitle').textContent = 'Thêm trận đấu';
+    document.getElementById('mmId').value = '';
+    ['mmMatchNo','mmRound','mmGroup','mmVenue','mmDateVietnam','mmTimeVietnam','mmHomeName','mmHomeCode','mmHomeLogo','mmHomeScore','mmAwayName','mmAwayCode','mmAwayLogo','mmAwayScore'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('mmStatus').value = 'NS';
+  }
+}
+
+function closeMatchModal() {
+  document.getElementById('matchModal').classList.remove('open');
+}
+
+async function saveMatch() {
+  const id = document.getElementById('mmId').value;
+  const matchData = {
+    matchNo: parseInt(document.getElementById('mmMatchNo').value) || null,
+    round: document.getElementById('mmRound').value.trim(),
+    group: document.getElementById('mmGroup').value.trim(),
+    venue: document.getElementById('mmVenue').value.trim(),
+    dateVietnam: document.getElementById('mmDateVietnam').value.trim(),
+    timeVietnam: document.getElementById('mmTimeVietnam').value.trim(),
+    statusShort: document.getElementById('mmStatus').value,
+    home: {
+      name: document.getElementById('mmHomeName').value.trim(),
+      code: document.getElementById('mmHomeCode').value.trim(),
+      logo: document.getElementById('mmHomeLogo').value.trim()
+    },
+    away: {
+      name: document.getElementById('mmAwayName').value.trim(),
+      code: document.getElementById('mmAwayCode').value.trim(),
+      logo: document.getElementById('mmAwayLogo').value.trim()
+    }
+  };
+  
+  const hS = document.getElementById('mmHomeScore').value;
+  if (hS !== '') matchData.home.score = parseInt(hS);
+  const aS = document.getElementById('mmAwayScore').value;
+  if (aS !== '') matchData.away.score = parseInt(aS);
+  
+  // calculate dateUtc for filtering
+  if (matchData.dateVietnam && matchData.timeVietnam) {
+    try {
+      const parts = matchData.dateVietnam.split('/');
+      if (parts.length === 3) {
+        const isoStr = `${parts[2]}-${parts[1]}-${parts[0]}T${matchData.timeVietnam}:00+07:00`;
+        matchData.dateUtc = new Date(isoStr).toISOString();
+      }
+    } catch (e) {}
+  }
+
+  const method = id ? 'PUT' : 'POST';
+  const url = id ? `/api/worldcup/matches/${id}` : '/api/worldcup/matches';
+  
   try {
-    const r = await fetch('/api/worldcup/sync', { method: 'POST', headers: authH() });
-    const res = await r.json();
+    const r = await fetch(url, {
+      method,
+      headers: { ...authH(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(matchData)
+    });
+    
     if (r.ok) {
-      toast(`Đã đồng bộ ${res.count} trận`, 'ok');
-      document.getElementById('syncStatus').textContent = `Đồng bộ lần cuối: ${new Date(res.lastSyncAt).toLocaleString('vi-VN')}`;
+      toast('Đã lưu trận đấu', 'ok');
+      closeMatchModal();
       await loadMatches();
       loadOverview();
     } else {
-      toast(res.error || 'Lỗi đồng bộ', 'err');
-      document.getElementById('syncStatus').textContent = 'Lỗi đồng bộ. Kiểm tra lại .env hoặc API Key.';
+      const err = await r.json();
+      toast(err.error || 'Lỗi lưu', 'err');
     }
   } catch (e) {
     toast('Lỗi kết nối', 'err');
-    document.getElementById('syncStatus').textContent = 'Lỗi kết nối';
   }
 }
 
-async function clearDemoData() {
-  if (!confirm('Xóa dữ liệu demo hiện tại?')) return;
+async function deleteMatch(id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa trận đấu này?')) return;
   try {
-    const r = await fetch('/api/worldcup/demo-clear', { method: 'POST', headers: authH() });
+    const r = await fetch(`/api/worldcup/matches/${id}`, { method: 'DELETE', headers: authH() });
     if (r.ok) {
-      toast('Đã xóa dữ liệu demo', 'ok');
+      toast('Đã xóa trận đấu', 'ok');
       await loadMatches();
       loadOverview();
+    } else {
+      toast('Lỗi xóa trận', 'err');
     }
-  } catch (e) { toast('Lỗi', 'err'); }
-}
-
-async function searchLeagueId() {
-  const el = document.getElementById('leagueSearchResults');
-  el.innerHTML = 'Đang tìm kiếm...';
-  try {
-    const r = await fetch('/api/worldcup/league-search', { headers: authH() });
-    const data = await r.json();
-    if (!data || data.length === 0) {
-      el.innerHTML = 'Không tìm thấy kết quả.';
-      return;
-    }
-    el.innerHTML = '<table class="a-table"><thead><tr><th>ID</th><th>Tên</th><th>Quốc gia</th></tr></thead><tbody>' + 
-      data.slice(0, 10).map(l => `<tr><td>${l.league.id}</td><td>${l.league.name}</td><td>${l.country.name}</td></tr>`).join('') +
-      '</tbody></table>';
-  } catch (e) { el.innerHTML = 'Lỗi tìm kiếm.'; }
-}
-
-async function testApi() {
-  const el = document.getElementById('apiDebugResults');
-  el.style.display = 'block';
-  el.innerHTML = 'Đang kiểm tra API...';
-  try {
-    const r = await fetch('/api/worldcup/matches');
-    const data = await r.json();
-    el.innerHTML = JSON.stringify(data, null, 2);
-  } catch (e) { el.innerHTML = 'Lỗi: ' + e.message; }
-}
-
-async function viewRawApi() {
-  const el = document.getElementById('apiDebugResults');
-  el.style.display = 'block';
-  el.innerHTML = 'Đang lấy dữ liệu thô từ API-FOOTBALL...';
-  try {
-    const r = await fetch('/api/worldcup/raw', { headers: authH() });
-    const data = await r.json();
-    el.innerHTML = JSON.stringify(data, null, 2);
-  } catch (e) { el.innerHTML = 'Lỗi: ' + e.message; }
-}
-
-async function importOfficialJson() {
-  const fileInput = document.getElementById('importJsonFile');
-  if (!fileInput.files || fileInput.files.length === 0) {
-    toast('Vui lòng chọn file JSON.', 'err');
-    return;
+  } catch (e) {
+    toast('Lỗi kết nối', 'err');
   }
-  const file = fileInput.files[0];
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      const r = await fetch('/api/worldcup/import-official-json', {
-        method: 'POST',
-        headers: authH(),
-        body: JSON.stringify(data)
-      });
-      const res = await r.json();
-      if (r.ok) {
-        toast(`Đã import thành công ${res.count} trận.`, 'ok');
-        await loadMatches();
-        loadOverview();
-      } else {
-        toast(res.error || 'Lỗi import.', 'err');
-      }
-    } catch (err) {
-      toast('File JSON không hợp lệ.', 'err');
-    }
-  };
-  reader.readAsText(file);
 }
 
 // === Overview ===

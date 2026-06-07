@@ -4,7 +4,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   // If already logged in, redirect to admin
   if (getToken()) {
-    fetch('/api/auth/me', { headers: authHeaders() })
+    fetch('/api/auth/me', { headers: authH() })
       .then(r => { if (r.ok) window.location.href = '/admin'; })
       .catch(() => {});
   }
