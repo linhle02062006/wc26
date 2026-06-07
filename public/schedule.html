@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Lịch thi đấu - WC 2026</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .sch-hero { padding: 40px 20px; text-align: center; background: linear-gradient(to bottom, rgba(16,185,129,0.1), transparent); margin-bottom: 20px; border-radius: 12px; }
+    .sch-hero h1 { font-size: 2.5rem; margin-bottom: 10px; font-weight: 800; background: linear-gradient(to right, #10b981, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .sch-hero p { color: var(--text2); font-size: 1.1rem; margin-bottom: 15px; }
+    .sch-badge { display: inline-block; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 0.85rem; color: var(--text3); }
+    
+    .hot-sec { margin-bottom: 30px; }
+    .hot-sec h2 { font-size: 1.4rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+    .hot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+
+    .sch-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; overflow-x: auto; scrollbar-width: none; }
+    .sch-tabs::-webkit-scrollbar { display: none; }
+    .sch-tab { padding: 10px 16px; background: transparent; border: none; color: var(--text3); font-weight: 600; cursor: pointer; white-space: nowrap; transition: 0.3s; position: relative; }
+    .sch-tab:hover { color: var(--text); }
+    .sch-tab.act { color: var(--primary); }
+    .sch-tab.act::after { content: ''; position: absolute; bottom: -11px; left: 0; width: 100%; height: 2px; background: var(--primary); }
+
+    .sch-tools { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; align-items: center; }
+    .sch-filters { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 5px; flex: 1; }
+    .sch-filters::-webkit-scrollbar { display: none; }
+    .sch-filters button { padding: 6px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; color: var(--text2); cursor: pointer; white-space: nowrap; font-size: 0.9rem; transition: 0.3s; }
+    .sch-filters button:hover { background: rgba(255,255,255,0.1); }
+    .sch-filters button.act { background: var(--primary); color: #fff; border-color: var(--primary); }
+    
+    .sch-selects { display: flex; gap: 10px; flex-wrap: wrap; }
+    .sch-search { display: flex; align-items: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0 10px; }
+    .sch-search input { background: transparent; border: none; color: var(--text); padding: 8px; outline: none; width: 200px; }
+    .sch-search svg { color: var(--text3); }
+
+    .group-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .group-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 15px; }
+    .group-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; color: var(--accent); border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+    .group-team { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); }
+    .group-team img { width: 24px; height: 24px; object-fit: contain; border-radius: 50%; }
+
+    .fav-btn { background: transparent; border: none; color: var(--text3); cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; padding: 5px; }
+    .fav-btn:hover { color: #f43f5e; }
+    .fav-btn.active { color: #f43f5e; fill: #f43f5e; }
+
+    .m-card-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85rem; color: var(--text3); }
+    .m-card-actions { display: flex; gap: 8px; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+    
+    .team-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; margin-bottom: 10px; }
+    .team-info { display: flex; align-items: center; gap: 12px; }
+    .team-info img { width: 30px; height: 30px; border-radius: 50%; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="hdr-logo" id="siteLogoLink"></a>
+    <nav class="nav" id="nav"></nav>
+    <div class="hdr-right">
+      <div class="viewer-badge"><span class="v-dot"></span><span id="viewerCount">0</span> online</div>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Menu"></button>
+    </div>
+  </header>
+  <div class="mob-menu" id="mobMenu"></div>
+  <div class="toast-c" id="toastC"></div>
+
+  <main class="main"><div class="container">
+    <section class="sch-hero">
+      <h1>Lịch Thi Đấu World Cup 2026</h1>
+      <p>Theo dõi 104 trận đấu từ vòng bảng đến chung kết</p>
+      <div class="sch-badge">Mỹ • Canada • Mexico &nbsp;|&nbsp; Giờ Việt Nam</div>
+    </section>
+
+    <!-- Hot Matches -->
+    <section class="hot-sec" id="hotSection" style="display:none;">
+      <h2><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> Trận đấu nổi bật</h2>
+      <div class="hot-grid" id="hotGrid"></div>
+    </section>
+
+    <!-- Tabs -->
+    <div class="sch-tabs" id="schTabs">
+      <button class="sch-tab act" data-tab="matches">Lịch thi đấu</button>
+      <button class="sch-tab" data-tab="groups">Bảng đấu & Xếp hạng</button>
+      <button class="sch-tab" data-tab="fav-matches">Trận yêu thích</button>
+      <button class="sch-tab" data-tab="fav-teams">Đội yêu thích</button>
+    </div>
+
+    <!-- Content Area -->
+    <div id="tabContent">
+      <!-- Loading -->
+      <div id="loadingState" class="empty"><div class="spinner"></div><p>Đang tải dữ liệu...</p></div>
+
+      <!-- Matches Tab -->
+      <div id="viewMatches" style="display:none;">
+        <div class="sch-tools">
+          <div class="sch-filters" id="filters">
+            <button class="f-btn act" data-filter="all">Tất cả</button>
+            <button class="f-btn" data-filter="hot">Hot nhất</button>
+            <button class="f-btn" data-filter="upcoming">Cận kề</button>
+            <button class="f-btn" data-filter="today">Hôm nay</button>
+            <button class="f-btn" data-filter="group">Vòng bảng</button>
+            <button class="f-btn" data-filter="round32">Vòng 32 đội</button>
+            <button class="f-btn" data-filter="round16">Vòng 16 đội</button>
+            <button class="f-btn" data-filter="quarter">Tứ kết</button>
+            <button class="f-btn" data-filter="semi">Bán kết</button>
+            <button class="f-btn" data-filter="final">Chung kết</button>
+          </div>
+        </div>
+        <div class="sch-tools">
+          <div class="sch-selects">
+            <select class="fc" id="groupF" style="min-width:150px"><option value="">Tất cả bảng</option></select>
+            <select class="fc" id="teamF" style="min-width:150px"><option value="">Tất cả đội</option></select>
+            <select class="fc" id="venueF" style="min-width:150px"><option value="">Tất cả sân</option></select>
+          </div>
+          <div class="sch-search">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="searchF" placeholder="Tìm đội, sân, thành phố...">
+          </div>
+        </div>
+        <div id="matchesGrid" class="m-grid"></div>
+      </div>
+
+      <!-- Groups Tab -->
+      <div id="viewGroups" style="display:none;">
+        <div id="groupsGrid" class="group-grid"></div>
+      </div>
+
+      <!-- Fav Matches Tab -->
+      <div id="viewFavMatches" style="display:none;">
+        <div id="favMatchesGrid" class="m-grid"></div>
+      </div>
+
+      <!-- Fav Teams Tab -->
+      <div id="viewFavTeams" style="display:none;">
+        <div id="favTeamsGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;"></div>
+      </div>
+    </div>
+
+  </div></main>
+  <footer class="footer"><p>2026 World Cup Watch Party. Không liên kết với FIFA.</p></footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="/js/schedule.js"></script>
+</body>
+</html>

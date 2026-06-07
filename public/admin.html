@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Admin Dashboard - WC 2026</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="hdr-logo" id="siteLogoLink"></a>
+    <nav class="nav" id="nav"></nav>
+    <div class="hdr-right">
+      <div class="viewer-badge"><span class="v-dot"></span><span id="viewerCount">0</span></div>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Menu"></button>
+    </div>
+  </header>
+  <div class="mob-menu" id="mobMenu"></div>
+  <div class="toast-c" id="toastC"></div>
+
+  <main class="main">
+    <div class="admin-wrap">
+      <aside class="admin-side" id="sidebar"></aside>
+      <div class="admin-body">
+        <!-- Overview -->
+        <div class="tab-c act" id="t-overview">
+          <h2 style="margin-bottom:16px">Tổng quan</h2>
+          <div class="ov-grid" id="ovGrid"></div>
+        </div>
+
+        <!-- API Football -->
+        <div class="tab-c" id="t-api-football">
+          <h2 style="margin-bottom:14px">Lịch World Cup API</h2>
+          <div class="wp-grid">
+            <div class="wp-card">
+              <h4>Đồng bộ dữ liệu</h4>
+              <p style="margin-bottom:10px; color:var(--text3);">Cập nhật lịch thi đấu mới nhất từ API-FOOTBALL.</p>
+              <div id="syncStatus" style="margin-bottom:10px;">Đang tải thông tin...</div>
+              <button class="btn btn-p" onclick="syncApiFootball()">Đồng bộ lịch thi đấu</button>
+              <button class="btn btn-s" onclick="clearDemoData()" style="margin-left:8px;">Xóa dữ liệu demo</button>
+            </div>
+            <div class="wp-card">
+              <h4>Tìm kiếm League ID</h4>
+              <p style="margin-bottom:10px; color:var(--text3);">Tìm mã League của World Cup để cấu hình trong file .env.</p>
+              <button class="btn btn-s" onclick="searchLeagueId()">Tìm World Cup League ID</button>
+              <div id="leagueSearchResults" style="margin-top:10px; max-height:200px; overflow-y:auto; font-size:0.9em;"></div>
+            </div>
+            
+            <div class="wp-card" style="grid-column:1/-1">
+              <h4>Kiểm tra & Debug API</h4>
+              <div style="display:flex; gap:8px; margin-top:10px;">
+                <button class="btn btn-s" onclick="testApi()">Kiểm tra API</button>
+                <button class="btn btn-s" onclick="viewRawApi()">Xem dữ liệu thô API</button>
+              </div>
+              <div id="apiDebugResults" style="margin-top:10px; padding:10px; background:var(--bg2); border-radius:4px; max-height:300px; overflow-y:auto; font-family:monospace; font-size:0.85em; display:none;"></div>
+            </div>
+
+            <div class="wp-card" style="grid-column:1/-1">
+              <h4>Import dữ liệu thủ công (Official JSON)</h4>
+              <p style="margin-bottom:10px; color:var(--text3);">Nếu API-FOOTBALL chưa trả về đúng lịch, có thể tải lên file JSON lịch thi đấu chính thức từ FIFA.</p>
+              <input type="file" id="importJsonFile" accept=".json" class="fc" style="margin-bottom:10px;">
+              <button class="btn btn-p" onclick="importOfficialJson()">Import JSON</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Watch Room -->
+        <div class="tab-c" id="t-room">
+          <h2 style="margin-bottom:14px">Phòng Xem Chung</h2>
+          <div class="wp-grid">
+            <div class="wp-card"><h4 id="rmStatusH">Trạng thái phòng</h4>
+              <div id="rmStatusBody"></div>
+            </div>
+            <div class="wp-card"><h4 id="rmVoiceH">Voice Chat</h4>
+              <div id="rmVoiceBody"></div>
+            </div>
+            <div class="wp-card" style="grid-column:1/-1"><h4 id="rmUsersH">Người trong phòng</h4>
+              <div id="rmUsersBody"></div>
+            </div>
+            <div class="wp-card" style="grid-column:1/-1"><h4>Trận đang chiếu</h4>
+              <select class="fc" id="rmMatch" onchange="setRoomMatch()"><option value="">-- Chọn --</option></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guest accounts -->
+        <div class="tab-c" id="t-guests">
+          <h2 style="margin-bottom:14px">Tài khoản khách</h2>
+          <div id="guestList"></div>
+        </div>
+
+        <!-- Settings -->
+        <div class="tab-c" id="t-settings">
+          <h2 style="margin-bottom:14px">Cài đặt</h2>
+          <div style="max-width:500px">
+            <div class="fg"><label>Tiêu đề website</label><input type="text" class="fc" id="stTitle"></div>
+            <hr style="border-color:var(--border);margin:20px 0">
+            <h4 style="margin-bottom:12px">Đổi mật khẩu host</h4>
+            <div class="fg"><label>Mật khẩu mới (tối thiểu 4 ký tự)</label><input type="password" class="fc" id="stPw" placeholder="Để trống nếu không đổi"></div>
+            <button class="btn btn-p" onclick="saveSt()">Lưu cài đặt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- No Match Modal anymore -->
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

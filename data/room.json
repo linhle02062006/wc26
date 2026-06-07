@@ -1,0 +1,13 @@
+{
+  "id": "b58317d1-36bc-4c0d-a213-dd88fdbf2379",
+  "roomId": "010a3a20",
+  "hostId": "user-host",
+  "isOpen": false,
+  "maxGuests": 2,
+  "currentGuestIds": [],
+  "voiceEnabled": false,
+  "guestMicAllowed": false,
+  "currentMatchId": "match-001",
+  "createdAt": "2026-06-07T18:20:57.940Z",
+  "closedAt": "2026-06-07T18:21:14.574Z"
+}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Đăng nhập - WC 2026</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="hdr-logo" id="siteLogoLink"></a>
+    <nav class="nav" id="nav"></nav>
+    <div class="hdr-right"><button class="hamburger" id="hamburgerBtn" aria-label="Menu"></button></div>
+  </header>
+  <div class="mob-menu" id="mobMenu"></div>
+
+  <main class="main">
+    <div class="login-wrap">
+      <div class="login-card">
+        <div style="text-align:center;margin-bottom:8px;color:var(--green)" id="loginTopIcon"></div>
+        <h2 id="loginIcon">Đăng nhập</h2>
+        <p class="sub">Đăng nhập để vào phòng xem chung</p>
+        <div id="loginErr" class="alert alert-e" style="display:none"></div>
+        <form id="loginForm">
+          <div class="fg">
+            <label for="username">Username</label>
+            <input type="text" id="username" class="fc" placeholder="host / guest1 / guest2" required autocomplete="username">
+          </div>
+          <div class="fg">
+            <label for="password">Password</label>
+            <input type="password" id="password" class="fc" placeholder="Nhập mật khẩu" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn btn-p" style="width:100%;min-height:44px;justify-content:center" id="loginBtn">Đăng nhập</button>
+        </form>
+        <p style="text-align:center;margin-top:16px;font-size:.8rem;color:var(--text3)">Chỉ host và tài khoản khách mới được đăng nhập.</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="/js/main.js"></script>
+  <script>
+    // Build nav
+    document.getElementById('siteLogoLink').innerHTML = icon('trophy',22) + '<span>WC 2026</span>';
+    document.getElementById('hamburgerBtn').innerHTML = icon('menu',22);
+    document.getElementById('nav').innerHTML = `<a href="/">${icon('home',16)} Trang chủ</a><a href="/schedule">${icon('calendar',16)} Lịch thi đấu</a><a href="/login" class="active">${icon('logIn',16)} Đăng nhập</a>`;
+    document.getElementById('mobMenu').innerHTML = `<a href="/">${icon('home',16)} Trang chủ</a><a href="/schedule">${icon('calendar',16)} Lịch thi đấu</a><a href="/login">${icon('logIn',16)} Đăng nhập</a>`;
+    document.getElementById('loginTopIcon').innerHTML = icon('shield',32);
+    document.getElementById('loginIcon').innerHTML = icon('lock',20) + ' Đăng nhập';
+
+    // Check if already logged in
+    if (getToken()) {
+      fetch('/api/auth/me', { headers: authH() })
+        .then(async r => {
+          if (!r.ok) return;
+          const me = await r.json();
+          const redir = new URLSearchParams(window.location.search).get('redirect');
+          if (redir) { window.location.href = redir; return; }
+          window.location.href = me.role === 'host' ? '/admin' : '/schedule';
+        })
+        .catch(() => {});
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errDiv = document.getElementById('loginErr');
+      errDiv.style.display = 'none';
+      const un = document.getElementById('username').value.trim();
+      const pw = document.getElementById('password').value;
+      if (!un || !pw) { errDiv.textContent = 'Vui lòng nhập đầy đủ'; errDiv.style.display = 'block'; return; }
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true; btn.textContent = 'Đang xử lý...';
+      try {
+        const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: un, password: pw }) });
+        const data = await res.json();
+        if (res.ok) {
+          setToken(data.token);
+          setUser({ id: data.id, username: data.username, role: data.role });
+          const redir = new URLSearchParams(window.location.search).get('redirect');
+          window.location.href = redir || (data.role === 'host' ? '/admin' : '/schedule');
+        } else {
+          errDiv.textContent = data.error || 'Đăng nhập thất bại';
+          errDiv.style.display = 'block';
+        }
+      } catch { errDiv.textContent = 'Lỗi kết nối'; errDiv.style.display = 'block'; }
+      finally { btn.disabled = false; btn.textContent = 'Đăng nhập'; }
+    });
+  </script>
+</body>
+</html>

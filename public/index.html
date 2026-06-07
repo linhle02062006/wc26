@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="description" content="World Cup 2026 Watch Party - Xem lịch thi đấu chính thức">
+  <title>World Cup 2026 Watch Party</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="hdr-logo" id="siteLogoLink"></a>
+    <nav class="nav" id="nav"></nav>
+    <div class="hdr-right">
+      <div class="viewer-badge"><span class="v-dot"></span><span id="viewerCount">0</span> online</div>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Menu"></button>
+    </div>
+  </header>
+  <div class="mob-menu" id="mobMenu"></div>
+  <div class="toast-c" id="toastC"></div>
+
+  <main class="main"><div class="container">
+    <section class="hero"><div class="hero-c">
+      <h1>World Cup 2026<br>Watch Party</h1>
+      <p>Xem lịch thi đấu và cùng bạn bè xem chung qua phòng Watch Party.</p>
+      <div class="hero-btns" id="heroButtons"></div>
+    </div></section>
+
+    <section id="liveSection" style="display:none">
+      <div class="sec-title" id="liveTitleEl"></div>
+      <div class="m-grid" id="liveGrid"></div>
+    </section>
+
+    <section id="upSection">
+      <div class="sec-title" id="upTitleEl"></div>
+      <div class="m-grid" id="upGrid"></div>
+    </section>
+  </div></main>
+  <footer class="footer"><p>2026 World Cup Watch Party. Không liên kết với FIFA.</p></footer>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/main.js"></script>
+  <script>
+    const socket = io();
+    socket.on('viewers:count', c => updateViewerCount(c));
+    socket.on('matches:synced', () => loadHome());
+
+    // Build nav
+    function buildNav() {
+      const u = getUser();
+      const logo = document.getElementById('siteLogoLink');
+      logo.innerHTML = icon('trophy', 22) + '<span>WC 2026</span>';
+      const nav = document.getElementById('nav');
+      const mob = document.getElementById('mobMenu');
+      const hb = document.getElementById('hamburgerBtn');
+      hb.innerHTML = icon('menu', 22);
+
+      let links = `<a href="/" class="active">${icon('home',16)} Trang chủ</a><a href="/schedule">${icon('calendar',16)} Lịch thi đấu</a>`;
+      let mobLinks = `<a href="/">${icon('home',16)} Trang chủ</a><a href="/schedule">${icon('calendar',16)} Lịch thi đấu</a>`;
+
+      if (u && (u.role === 'host' || u.role === 'guest')) {
+        links += `<a href="/admin">${icon('layout',16)} ${u.role === 'host' ? 'Bảng điều khiển' : 'Phòng xem'}</a>`;
+        mobLinks += `<a href="/admin">${icon('layout',16)} ${u.role === 'host' ? 'Bảng điều khiển' : 'Phòng xem'}</a>`;
+        links += `<a href="#" class="nav-danger" onclick="logout()">${icon('logOut',16)} Đăng xuất</a>`;
+        mobLinks += `<a href="#" onclick="logout()">${icon('logOut',16)} Đăng xuất</a>`;
+      } else {
+        links += `<a href="/login">${icon('logIn',16)} Đăng nhập</a>`;
+        mobLinks += `<a href="/login">${icon('logIn',16)} Đăng nhập</a>`;
+      }
+      nav.innerHTML = links;
+      mob.innerHTML = mobLinks;
+    }
+
+    function buildHeroButtons() {
+      const u = getUser();
+      const el = document.getElementById('heroButtons');
+      let html = `<a href="/schedule" class="btn btn-p">${icon('calendar',16)} Xem lịch thi đấu</a>`;
+      if (u && (u.role === 'host' || u.role === 'guest')) {
+        html += `<a href="/admin" class="btn btn-g">${icon('tv',16)} Vào phòng xem chung</a>`;
+      } else {
+        html += `<a href="/login" class="btn btn-s">${icon('lock',16)} Đăng nhập để vào phòng xem chung</a>`;
+      }
+      el.innerHTML = html;
+    }
+
+    async function loadHome() {
+      try {
+        const res = await fetch('/api/worldcup/upcoming');
+        const data = await res.json();
+        
+        document.getElementById('upTitleEl').innerHTML = `${icon('calendar',20)} Trận sắp tới`;
+        
+        if (!data.success) {
+           document.getElementById('upGrid').innerHTML = `<div class="empty">${icon('x',40)}<p>${data.message || 'Lỗi tải dữ liệu'}</p></div>`;
+           return;
+        }
+
+        let up = data.matches || [];
+        up = up.slice(0, 6);
+
+        document.getElementById('upGrid').innerHTML = up.length > 0
+          ? up.map(m => matchCard(m)).join('')
+          : `<div class="empty">${icon('calendar',40)}<p>Chưa có lịch thi đấu chính thức.</p></div>`;
+          
+        // Hide live section as we don't need it specifically separate
+        document.getElementById('liveSection').style.display = 'none';
+      } catch(e) { console.error(e); }
+    }
+
+    buildNav();
+    buildHeroButtons();
+    loadHome();
+  </script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Watch Room - WC 2026</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="hdr-logo" id="siteLogoLink"></a>
+    <nav class="nav" id="nav"></nav>
+    <div class="hdr-right">
+      <div class="viewer-badge"><span class="v-dot"></span><span id="viewerCount">0</span></div>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Menu"></button>
+    </div>
+  </header>
+  <div class="mob-menu" id="mobMenu"></div>
+  <div class="toast-c" id="toastC"></div>
+
+  <main class="main"><div class="container">
+    <!-- Auth gate -->
+    <div id="authGate" style="display:none">
+      <div class="login-wrap" style="min-height:60vh">
+        <div class="login-card">
+          <h2>Bạn cần đăng nhập</h2>
+          <p class="sub">Đăng nhập để vào phòng xem chung</p>
+          <a href="/login" class="btn btn-p" style="width:100%;justify-content:center">Đăng nhập</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Room closed -->
+    <div id="roomClosed" style="display:none">
+      <div class="empty" style="min-height:50vh">
+        <div id="closedIcon"></div>
+        <h2 style="margin:12px 0 8px">Phòng đã đóng</h2>
+        <p>Host đã đóng phòng xem chung.</p>
+        <a href="/schedule" class="btn btn-p" style="margin-top:16px">Xem lịch thi đấu</a>
+      </div>
+    </div>
+
+    <!-- Room content -->
+    <div id="roomContent" style="display:none">
+      <div class="room-layout">
+        <!-- Video -->
+        <div>
+          <div class="video-wrap" id="videoWrap">
+            <video id="remoteVideo" autoplay playsinline style="display:none"></video>
+            <div class="video-ph" id="videoPH">
+              <div id="phIcon"></div>
+              <p id="phText">Đang chờ host bắt đầu chia sẻ...</p>
+              <button id="startShareBtn" class="btn btn-p" style="display:none" onclick="startShare()">Bắt đầu chia sẻ màn hình</button>
+            </div>
+            <div class="quality-badge" id="qualityBadge" style="display:none">--</div>
+          </div>
+          <div class="notice" style="margin-top:8px">Chỉ sử dụng nguồn phát hợp pháp. Không re-stream nội dung bản quyền.</div>
+
+          <!-- Mic button -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px">
+            <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Bật/tắt mic">
+              <span id="micIcon"></span>
+            </button>
+            <div class="conn-status" id="connStatus"><span class="conn-dot wait"></span> Đang kết nối</div>
+          </div>
+        </div>
+
+        <!-- Panel -->
+        <div class="room-panel">
+          <!-- Current match -->
+          <div class="r-card" id="matchCard" style="display:none">
+            <h3 id="matchCardH"></h3>
+            <div id="matchInfo"></div>
+          </div>
+
+          <!-- Users -->
+          <div class="r-card">
+            <h3 id="usersH"></h3>
+            <div class="user-list" id="userList"></div>
+          </div>
+
+          <!-- Host controls (host only) -->
+          <div class="r-card" id="hostControls" style="display:none">
+            <h3 id="hctrlH"></h3>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="btn btn-d btn-sm" onclick="stopShare()" id="stopShareBtn" style="display:none">Dừng chia sẻ</button>
+              <button class="btn btn-d btn-sm" onclick="muteAllGuests()">Mute tất cả khách</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div></main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/main.js"></script>
+  <script src="/js/room.js"></script>
+</body>
+</html>
