@@ -80,7 +80,10 @@ async function initUsers() {
     writeJSON('users.json', users);
     console.log('[INIT] Users created: host, guest1, guest2');
   }
-  if (!readJSON('worldcup-matches.json')) writeJSON('worldcup-matches.json', { source: 'api-football', lastSyncAt: null, data: [] });
+  if (!readJSON('worldcup-2026-schedule.json')) {
+    writeJSON('worldcup-2026-schedule.json', []);
+    console.log('[INIT] worldcup-2026-schedule.json created (empty)');
+  }
   if (!readJSON('settings.json')) writeJSON('settings.json', { siteTitle: 'World Cup 2026 Watch Party', darkMode: true });
   if (!readJSON('room.json')) writeJSON('room.json', { id: null, roomId: null, hostId: null, isOpen: false, maxGuests: 2, currentGuestIds: [], voiceEnabled: false, guestMicAllowed: false, currentMatchId: null, createdAt: null });
 }
@@ -156,9 +159,13 @@ app.post('/api/users/guests/:id/reset-session', authMW, hostOnly, (req, res) => 
 // ==================== MATCHES (Local JSON) ====================
 function getScheduleData() {
   try {
+    // The JSON file is a plain array, not an object with .matches property
     const data = readJSON('worldcup-2026-schedule.json');
     if (!data) return null;
+    // If it's already an array, return it directly
     if (Array.isArray(data)) return data;
+    // Legacy format: { data: [...] } or { matches: [...] }
+    if (data.data && Array.isArray(data.data)) return data.data;
     if (data.matches && Array.isArray(data.matches)) return data.matches;
     return null;
   } catch { return null; }
@@ -530,9 +537,36 @@ app.get('/api/rooms/current', (req, res) => {
 
 app.get('/api/rooms/:roomId', authMW, hostOrGuest, (req, res) => {
   const room = readJSON('room.json');
-  if (!room || room.roomId !== req.params.roomId) return res.status(404).json({ error: 'Phòng không tồn tại' });
-  if (!room.isOpen) return res.status(410).json({ error: 'Phòng đã đóng' });
-  res.json(room);
+  if (!room || room.roomId !== req.params.roomId) return res.status(404).json({ success: false, message: 'Phòng không tồn tại.' });
+  if (!room.isOpen) return res.status(410).json({ success: false, message: 'Phòng đã đóng.' });
+  // Find current match
+  let match = null;
+  if (room.currentMatchId) {
+    const matches = getScheduleData();
+    if (matches) match = matches.find(m => m.id === room.currentMatchId) || null;
+  }
+  res.json({ success: true, room, match });
+});
+
+app.post('/api/rooms/:roomId/join', authMW, hostOrGuest, (req, res) => {
+  const room = readJSON('room.json');
+  if (!room || room.roomId !== req.params.roomId) return res.status(404).json({ success: false, message: 'Phòng không tồn tại.' });
+  if (!room.isOpen) return res.status(410).json({ success: false, message: 'Phòng đã đóng.' });
+  if (req.user.role === 'guest') {
+    if (room.currentGuestIds.length >= room.maxGuests && !room.currentGuestIds.includes(req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Phòng đã đủ người xem.' });
+    }
+    if (!room.currentGuestIds.includes(req.user.id)) {
+      room.currentGuestIds.push(req.user.id);
+      writeJSON('room.json', room);
+    }
+  }
+  let match = null;
+  if (room.currentMatchId) {
+    const matches = getScheduleData();
+    if (matches) match = matches.find(m => m.id === room.currentMatchId) || null;
+  }
+  res.json({ success: true, room, match });
 });
 
 app.post('/api/rooms/:roomId/close', authMW, hostOnly, (req, res) => {
@@ -622,11 +656,14 @@ io.on('connection', (socket) => {
   io.emit('viewers:count', io.engine.clientsCount);
 
   // Authenticate socket
-  socket.on('auth', (data) => {
+  socket.on('auth', (data, callback) => {
     try {
       const decoded = jwt.verify(data.token, JWT_SECRET);
       connectedUsers.set(socket.id, { userId: decoded.id, username: decoded.username, role: decoded.role, socketId: socket.id });
-    } catch {}
+      if (typeof callback === 'function') callback({ ok: true });
+    } catch {
+      if (typeof callback === 'function') callback({ ok: false });
+    }
   });
 
   // Room join
@@ -662,25 +699,63 @@ io.on('connection', (socket) => {
     socket.join('room:' + data.roomId);
     socket.roomId = data.roomId;
 
+    // Notify host that a guest joined
+    for (const [sid, u] of connectedUsers) {
+      if (u.role === 'host') {
+        const s = io.sockets.sockets.get(sid);
+        if (s && s.rooms && s.rooms.has('room:' + data.roomId)) {
+          s.emit('room:guestJoined', { userId: user.userId, username: user.username, socketId: socket.id });
+        }
+      }
+    }
+
     // Broadcast user list
     broadcastRoomUsers(data.roomId);
     socket.emit('room:joined', { roomId: data.roomId, voiceEnabled: room.voiceEnabled, guestMicAllowed: room.guestMicAllowed });
   });
 
-  // WebRTC signaling
+  // WebRTC signaling — find target by socketId (included in room:userList)
+  function findSocketBySocketId(socketId) {
+    return io.sockets.sockets.get(socketId) || null;
+  }
+
   socket.on('webrtc:offer', (data) => {
-    const target = findSocketByUserId(data.targetUserId);
-    if (target) target.emit('webrtc:offer', { offer: data.offer, fromUserId: connectedUsers.get(socket.id)?.userId });
+    // data: { roomId, targetSocketId, offer }
+    if (!data.targetSocketId) return;
+    const target = findSocketBySocketId(data.targetSocketId);
+    if (target) {
+      target.emit('webrtc:offer', {
+        offer: data.offer,
+        fromSocketId: socket.id,
+        fromUserId: connectedUsers.get(socket.id)?.userId
+      });
+    }
   });
 
   socket.on('webrtc:answer', (data) => {
-    const target = findSocketByUserId(data.targetUserId);
-    if (target) target.emit('webrtc:answer', { answer: data.answer, fromUserId: connectedUsers.get(socket.id)?.userId });
+    // data: { roomId, targetSocketId, answer }
+    if (!data.targetSocketId) return;
+    const target = findSocketBySocketId(data.targetSocketId);
+    if (target) {
+      target.emit('webrtc:answer', {
+        answer: data.answer,
+        fromSocketId: socket.id,
+        fromUserId: connectedUsers.get(socket.id)?.userId
+      });
+    }
   });
 
   socket.on('webrtc:iceCandidate', (data) => {
-    const target = findSocketByUserId(data.targetUserId);
-    if (target) target.emit('webrtc:iceCandidate', { candidate: data.candidate, fromUserId: connectedUsers.get(socket.id)?.userId });
+    // data: { roomId, targetSocketId, candidate }
+    if (!data.targetSocketId) return;
+    const target = findSocketBySocketId(data.targetSocketId);
+    if (target) {
+      target.emit('webrtc:iceCandidate', {
+        candidate: data.candidate,
+        fromSocketId: socket.id,
+        fromUserId: connectedUsers.get(socket.id)?.userId
+      });
+    }
   });
 
   // Screen share events
@@ -734,10 +809,11 @@ io.on('connection', (socket) => {
     io.to('room:' + socket.roomId).emit('mic:forcemuteAll');
   });
 
-  // Disconnect
-  socket.on('disconnect', () => {
+  socket.on('room:leave', (data) => {
     const user = connectedUsers.get(socket.id);
-    if (user && user.role === 'guest') {
+    if (!user || !socket.roomId) return;
+    socket.leave('room:' + socket.roomId);
+    if (user.role === 'guest') {
       const room = readJSON('room.json');
       if (room && room.isOpen) {
         room.currentGuestIds = room.currentGuestIds.filter(id => id !== user.userId);
@@ -749,6 +825,30 @@ io.on('connection', (socket) => {
         dbUser.currentSessionId = null;
         writeJSON('users.json', users);
       }
+    }
+    const prevRoomId = socket.roomId;
+    socket.roomId = null;
+    broadcastRoomUsers(prevRoomId);
+  });
+
+  // Disconnect
+  socket.on('disconnect', () => {
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+      if (user.role === 'guest') {
+        const room = readJSON('room.json');
+        if (room && room.isOpen) {
+          room.currentGuestIds = room.currentGuestIds.filter(id => id !== user.userId);
+          writeJSON('room.json', room);
+        }
+        const users = readJSON('users.json') || [];
+        const dbUser = users.find(u => u.id === user.userId);
+        if (dbUser && dbUser.currentSessionId === socket.id) {
+          dbUser.currentSessionId = null;
+          writeJSON('users.json', users);
+        }
+      }
+      // Broadcast updated user list for any role
       if (socket.roomId) broadcastRoomUsers(socket.roomId);
     }
     connectedUsers.delete(socket.id);
@@ -767,8 +867,8 @@ function broadcastRoomUsers(roomId) {
   const roomUsers = [];
   for (const [sid, u] of connectedUsers) {
     const s = io.sockets.sockets.get(sid);
-    if (s && s.rooms.has('room:' + roomId)) {
-      roomUsers.push({ userId: u.userId, username: u.username, role: u.role });
+    if (s && s.rooms && s.rooms.has('room:' + roomId)) {
+      roomUsers.push({ userId: u.userId, username: u.username, role: u.role, socketId: sid });
     }
   }
   io.to('room:' + roomId).emit('room:userList', roomUsers);
