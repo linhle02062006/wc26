@@ -10,6 +10,7 @@ const token = getToken();
 let myRole = null;
 let currentRoom = null;
 let peerConnections = {};      // key = socketId -> RTCPeerConnection
+let pendingIceCandidates = {};  // key = socketId -> array of candidates
 let socketIdMap = {};          // key = userId -> socketId
 let localScreenStream = null;  // screen share
 let localAudioStream = null;   // mic
@@ -283,8 +284,23 @@ function setupSocketHandlers() {
     // data: { candidate, fromSocketId, fromUserId }
     try {
       const pc = peerConnections[data.fromSocketId];
-      if (pc && data.candidate) {
-        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      if (pc) {
+        // Only add if we have remote description set
+        if (pc.remoteDescription) {
+          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } else {
+          // Queue for later if remote description not set yet
+          if (!pendingIceCandidates[data.fromSocketId]) {
+            pendingIceCandidates[data.fromSocketId] = [];
+          }
+          pendingIceCandidates[data.fromSocketId].push(data.candidate);
+        }
+      } else {
+        // Queue if PC doesn't exist yet
+        if (!pendingIceCandidates[data.fromSocketId]) {
+          pendingIceCandidates[data.fromSocketId] = [];
+        }
+        pendingIceCandidates[data.fromSocketId].push(data.candidate);
       }
     } catch (e) {
       // ICE candidate errors are common and non-critical
@@ -345,6 +361,14 @@ function createPeerConnection(targetSocketId, isInitiator) {
   const pc = new RTCPeerConnection(ICE_CFG);
   peerConnections[targetSocketId] = pc;
   console.log('[WebRTC] Created PC for:', targetSocketId, 'initiator:', isInitiator);
+
+  // Process any pending ICE candidates
+  if (pendingIceCandidates[targetSocketId]) {
+    pendingIceCandidates[targetSocketId].forEach(candidate => {
+      pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+    });
+    delete pendingIceCandidates[targetSocketId];
+  }
 
   pc.onicecandidate = (e) => {
     if (e.candidate) {
@@ -631,6 +655,7 @@ function cleanupPeerConnections() {
     try { pc.close(); } catch {}
   }
   peerConnections = {};
+  pendingIceCandidates = {};
   if (qualityTimer) { clearInterval(qualityTimer); qualityTimer = null; }
 }
 

@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (res.ok) {
         setToken(data.token);
+        setUser({ id: data.id, username: data.username, role: data.role });
         window.location.href = '/admin';
       } else {
         errorDiv.textContent = data.error || 'Đăng nhập thất bại';
