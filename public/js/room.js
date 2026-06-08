@@ -123,10 +123,15 @@ function setupSocketHandlers() {
     renderUserList(users);
   });
 
-  socket.on('room:close', () => {
-    toast('Host da dong phong', 'err');
+  socket.on('room:closed', () => {
+    toast('Phòng đã được host đóng.', 'err');
     cleanupConnections();
-    setTimeout(() => window.location.href = '/schedule', 2000);
+    if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+    if (localAudio) { localAudio.getTracks().forEach(t => t.stop()); localAudio = null; }
+    micEnabled = false;
+    document.getElementById('remoteVideo').style.display = 'none';
+    document.getElementById('roomContent').style.display = 'none';
+    document.getElementById('roomClosed').style.display = 'block';
   });
 
   socket.on('room:kick', (data) => {

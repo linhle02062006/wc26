@@ -2,7 +2,7 @@
   {
     "id": "user-host",
     "username": "host",
-    "password": "$2a$12$DhwhHh1uNlZCy9flsbh8rOosErau7G4yBG8PwoPcV3rkhK5Xm7RPm",
+    "password": "$2a$12$gnc8sbu6O8IaRqm0FTgS8OZEGocKj8yOUakqqePmYd5Y4QlCYmrT.",
     "role": "host",
     "active": true,
     "currentSessionId": null
@@ -10,7 +10,7 @@
   {
     "id": "user-guest1",
     "username": "guest1",
-    "password": "$2a$12$.tGu55QqcSAdr8/zMjRJzO8SjBmxa9WxbpVzYKPYWM6vhG7a9L9Cm",
+    "password": "$2a$12$IJrtiQI7d0Dujr66rHoMZ.nqyOzxeQ63OItn3Iw/7o.dvjiTi5CnS",
     "role": "guest",
     "active": true,
     "currentSessionId": null
@@ -18,7 +18,7 @@
   {
     "id": "user-guest2",
     "username": "guest2",
-    "password": "$2a$12$i9DaTKaBSMIeY1kdSUc/UuVXHHkhDuG6ZiuehsNu0.OAHUdjIsylC",
+    "password": "$2a$12$njUmDBW3NZQvFb96m1n1je4QtW.gAroEdz30aQJGq8clp5PfJzdAO",
     "role": "guest",
     "active": true,
     "currentSessionId": null

@@ -153,101 +153,111 @@ app.post('/api/users/guests/:id/reset-session', authMW, hostOnly, (req, res) => 
   res.json({ ok: true });
 });
 
-// ==================== MATCHES (API-FOOTBALL) ====================
-app.get('/api/worldcup/matches', (req, res) => {
-  if (!process.env.API_FOOTBALL_KEY) {
-    return res.json({ success: false, message: 'Chưa cấu hình API_FOOTBALL_KEY trong file .env.', matches: [] });
-  }
+// ==================== MATCHES (Local JSON) ====================
+function getScheduleData() {
+  try {
+    const data = readJSON('worldcup-2026-schedule.json');
+    if (!data) return null;
+    if (Array.isArray(data)) return data;
+    if (data.matches && Array.isArray(data.matches)) return data.matches;
+    return null;
+  } catch { return null; }
+}
 
-  const cache = readJSON('worldcup-matches.json');
-  if (!cache || !cache.data || cache.data.length === 0) {
-    return res.json({ success: false, message: 'API chưa trả về lịch thi đấu chính thức hoặc sai League ID.', matches: [] });
+app.get('/api/worldcup/matches', (req, res) => {
+  const matches = getScheduleData();
+  if (!matches) {
+    return res.json({ success: false, message: 'Không thể đọc file lịch thi đấu.', matches: [] });
   }
-  
+  if (matches.length === 0) {
+    return res.json({ success: false, message: 'Chưa có dữ liệu lịch thi đấu.', matches: [] });
+  }
   res.json({
     success: true,
-    source: cache.source || 'cache',
-    count: cache.data.length,
-    matches: cache.data
+    source: 'local-json',
+    count: matches.length,
+    matches
   });
 });
 
 app.get('/api/worldcup/today', (req, res) => {
-  const cache = readJSON('worldcup-matches.json');
-  if (!cache || !cache.data || cache.data.length === 0) {
+  const matches = getScheduleData();
+  if (!matches || matches.length === 0) {
     return res.json({ success: false, message: 'Không có dữ liệu.', matches: [] });
   }
   const tzOpts = { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' };
-  const todayStr = new Intl.DateTimeFormat('en-CA', tzOpts).format(new Date()); // YYYY-MM-DD in VN
-  
-  const todayMatches = cache.data.filter(m => {
-    const mDateStr = new Intl.DateTimeFormat('en-CA', tzOpts).format(new Date(m.dateUtc));
+  const todayStr = new Intl.DateTimeFormat('en-CA', tzOpts).format(new Date());
+
+  const todayMatches = matches.filter(m => {
+    const dateStr = m.dateEt || m.dateUtc;
+    if (!dateStr) return false;
+    const mDateStr = new Intl.DateTimeFormat('en-CA', tzOpts).format(new Date(dateStr));
     return mDateStr === todayStr;
   });
   res.json({
     success: true,
-    source: cache.source,
+    source: 'local-json',
     count: todayMatches.length,
     matches: todayMatches
   });
 });
 
 app.get('/api/worldcup/upcoming', (req, res) => {
-  const cache = readJSON('worldcup-matches.json');
-  if (!cache || !cache.data || cache.data.length === 0) {
+  const matches = getScheduleData();
+  if (!matches || matches.length === 0) {
     return res.json({ success: false, message: 'Không có dữ liệu.', matches: [] });
   }
-  const tzOpts = { timeZone: 'Asia/Ho_Chi_Minh' };
-  // Lấy thời gian hiện tại theo giờ VN
-  const nowVN = new Date(new Date().toLocaleString("en-US", tzOpts)).getTime();
-
-  // Upcoming = NS, TBD, hoặc trận chưa đá/vừa đá
-  const upcoming = cache.data.filter(m => {
-    const mTimeVN = new Date(new Date(m.dateUtc).toLocaleString("en-US", tzOpts)).getTime();
-    return (m.statusShort === 'NS' || m.statusShort === 'TBD') || mTimeVN > nowVN - 2*3600*1000;
+  const now = new Date();
+  const upcoming = matches.filter(m => {
+    const dateStr = m.dateEt || m.dateUtc;
+    if (!dateStr) return m.status === 'upcoming';
+    return new Date(dateStr) > new Date(now.getTime() - 2 * 3600 * 1000);
   });
-  upcoming.sort((a, b) => new Date(a.dateUtc) - new Date(b.dateUtc));
+  upcoming.sort((a, b) => {
+    const da = new Date(a.dateEt || a.dateUtc || 0);
+    const db = new Date(b.dateEt || b.dateUtc || 0);
+    return da - db;
+  });
   res.json({
     success: true,
-    source: cache.source,
+    source: 'local-json',
     count: upcoming.length,
     matches: upcoming
   });
 });
 
 app.get('/api/worldcup/groups', (req, res) => {
-  const cache = readJSON('worldcup-matches.json');
-  if (!cache || !cache.data || cache.data.length === 0) {
+  const matches = getScheduleData();
+  if (!matches || matches.length === 0) {
     return res.json({ success: false, message: 'Không có dữ liệu.', groups: {} });
   }
   const groups = {};
-  cache.data.forEach(m => {
+  matches.forEach(m => {
     if (m.group) {
       if (!groups[m.group]) groups[m.group] = new Set();
       if (m.home && m.home.name && m.home.name !== 'TBD') groups[m.group].add(JSON.stringify(m.home));
       if (m.away && m.away.name && m.away.name !== 'TBD') groups[m.group].add(JSON.stringify(m.away));
     }
   });
-  
   const formattedGroups = {};
   for (const g in groups) {
     formattedGroups[g] = Array.from(groups[g]).map(t => JSON.parse(t));
   }
-  
   res.json({ success: true, groups: formattedGroups });
 });
 
 app.get('/api/worldcup/teams', (req, res) => {
-  const cache = readJSON('worldcup-matches.json');
-  if (!cache || !cache.data || cache.data.length === 0) {
+  const matches = getScheduleData();
+  if (!matches || matches.length === 0) {
     return res.json({ success: false, message: 'Không có dữ liệu.', teams: [] });
   }
   const teamsMap = new Map();
-  cache.data.forEach(m => {
-    if (m.home && m.home.id) teamsMap.set(m.home.id, m.home);
-    if (m.away && m.away.id) teamsMap.set(m.away.id, m.away);
+  matches.forEach(m => {
+    const hKey = m.home?.code || m.home?.name;
+    const aKey = m.away?.code || m.away?.name;
+    if (hKey && m.home.name !== 'TBD') teamsMap.set(hKey, m.home);
+    if (aKey && m.away.name !== 'TBD') teamsMap.set(aKey, m.away);
   });
-  
   res.json({ success: true, teams: Array.from(teamsMap.values()) });
 });
 
@@ -486,19 +496,30 @@ app.post('/api/rooms', authMW, hostOnly, (req, res) => {
   const currentMatchId = req.body.currentMatchId;
   if (!currentMatchId) return res.status(400).json({ error: 'Vui lòng chọn trận đấu.' });
   
-  const matchesCache = readJSON('worldcup-matches.json');
-  if (!matchesCache || !matchesCache.data || matchesCache.data.length === 0) {
+  const matches = getScheduleData();
+  if (!matches || matches.length === 0) {
     return res.status(400).json({ error: 'Chưa có lịch thi đấu chính thức để tạo phòng xem chung.' });
   }
   
-  const match = matchesCache.data.find(m => m.id === currentMatchId);
+  const match = matches.find(m => m.id === currentMatchId);
   if (!match) return res.status(400).json({ error: 'Trận đấu không hợp lệ.' });
+
+  // Close existing open room first
+  const oldRoom = readJSON('room.json');
+  if (oldRoom && oldRoom.isOpen) {
+    oldRoom.isOpen = false;
+    oldRoom.closedAt = new Date().toISOString();
+    oldRoom.currentGuestIds = [];
+    writeJSON('room.json', oldRoom);
+    io.emit('room:closed', { roomId: oldRoom.roomId });
+  }
 
   const roomId = uuidv4().slice(0, 8);
   const room = { id: uuidv4(), roomId, hostId: req.user.id, isOpen: true, maxGuests: 2, currentGuestIds: [], voiceEnabled: false, guestMicAllowed: false, currentMatchId: currentMatchId, createdAt: new Date().toISOString(), closedAt: null };
   writeJSON('room.json', room);
+  const inviteUrl = `/room/${roomId}`;
   io.emit('room:created', { roomId });
-  res.json(room);
+  res.json({ success: true, room, inviteUrl });
 });
 
 app.get('/api/rooms/current', (req, res) => {
@@ -525,7 +546,7 @@ app.post('/api/rooms/:roomId/close', authMW, hostOnly, (req, res) => {
   const users = readJSON('users.json') || [];
   users.forEach(u => { if (u.role === 'guest') u.currentSessionId = null; });
   writeJSON('users.json', users);
-  io.emit('room:close', { roomId: room.roomId });
+  io.emit('room:closed', { roomId: room.roomId });
   res.json({ ok: true });
 });
 
@@ -556,9 +577,9 @@ app.patch('/api/rooms/:roomId/current-match', authMW, hostOnly, (req, res) => {
   const room = readJSON('room.json');
   if (!room) return res.status(404).json({ error: 'Không tìm thấy' });
   const newMatchId = req.body.matchId;
-  const matchesCache = readJSON('worldcup-matches.json');
-  if (!matchesCache || !matchesCache.data) return res.status(400).json({ error: 'Chưa có lịch thi đấu chính thức.' });
-  const match = matchesCache.data.find(m => m.id === newMatchId);
+  const matches = getScheduleData();
+  if (!matches || matches.length === 0) return res.status(400).json({ error: 'Chưa có lịch thi đấu chính thức.' });
+  const match = matches.find(m => m.id === newMatchId);
   if (!match) return res.status(400).json({ error: 'Trận đấu không hợp lệ.' });
   
   room.currentMatchId = newMatchId;

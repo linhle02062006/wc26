@@ -72,19 +72,27 @@ async function loadAll() {
 
 // === Match Management ===
 async function loadMatches() {
-  const r = await fetch('/api/worldcup/matches');
-  const data = await r.json();
-  if (data.success && data.matches) {
-    aMatches = data.matches;
-  } else {
-    aMatches = [];
-  }
+  try {
+    const r = await fetch('/api/worldcup/matches');
+    const data = await r.json();
+    if (data.success && data.matches) {
+      aMatches = data.matches;
+    } else {
+      aMatches = [];
+    }
+  } catch { aMatches = []; }
   
   // Populate room select
   const rmSel = document.getElementById('rmMatch');
   if (rmSel) {
     const v = rmSel.value;
-    rmSel.innerHTML = '<option value="">-- Chọn trận đấu --</option>' + aMatches.map(m => `<option value="${m.id}">${m.home?.name || 'TBD'} vs ${m.away?.name || 'TBD'} (${m.timeVietnam || ''} ${m.dateVietnam || ''})</option>`).join('');
+    rmSel.innerHTML = '<option value="">-- Chọn trận đấu --</option>' + aMatches.map(m => {
+      const no = m.matchNo ? `Trận ${m.matchNo}` : '';
+      const teams = `${m.home?.name || 'TBD'} vs ${m.away?.name || 'TBD'}`;
+      const dt = `${m.dateVietnam || ''} - ${m.timeVietnam || ''}`;
+      const venue = m.venue || '';
+      return `<option value="${m.id}">${no ? no + ' | ' : ''}${teams} | ${dt} | ${venue}</option>`;
+    }).join('');
     rmSel.value = v;
   }
 
@@ -285,8 +293,15 @@ async function loadRoom() {
       if (rmSel) rmSel.value = rm.currentMatchId || '';
   } else {
     sb.innerHTML = `<p style="color:var(--text3);margin-bottom:10px">Chưa có phòng nào</p>
-    <div style="margin-bottom:10px;"><select id="newRoomMatch" class="fc"><option value="">-- Chọn trận đấu trước khi tạo phòng --</option>${aMatches.map(m => `<option value="${m.id}">${m.home?.name || 'TBD'} vs ${m.away?.name || 'TBD'} (${m.timeVietnam || ''} ${m.dateVietnam || ''})</option>`).join('')}</select></div>
-    <button class="btn btn-p btn-sm" onclick="createRoom()">Tạo phòng xem chung</button>`;
+    <div style="margin-bottom:10px;"><select id="newRoomMatch" class="fc"><option value="">-- Chọn trận đấu trước khi tạo phòng --</option>${aMatches.map(m => {
+      const no = m.matchNo ? `Trận ${m.matchNo}` : '';
+      const teams = `${m.home?.name || 'TBD'} vs ${m.away?.name || 'TBD'}`;
+      const dt = `${m.dateVietnam || ''} - ${m.timeVietnam || ''}`;
+      const venue = m.venue || '';
+      return `<option value="${m.id}">${no ? no + ' | ' : ''}${teams} | ${dt} | ${venue}</option>`;
+    }).join('')}</select></div>
+    ${aMatches.length === 0 ? '<p style="color:var(--red);font-size:.85rem;margin-bottom:10px">Chưa có lịch thi đấu để tạo phòng.</p>' : ''}
+    <button class="btn btn-p btn-sm" onclick="createRoom()" ${aMatches.length === 0 ? 'disabled' : ''}>Tạo phòng xem chung</button>`;
   }
 
   // Voice
@@ -310,9 +325,10 @@ async function createRoom() {
   }
   try {
     const r = await fetch('/api/rooms', { method: 'POST', headers: authH(), body: JSON.stringify({ currentMatchId: matchId }) });
-    if (r.ok) { toast('Đã tạo phòng', 'ok'); loadRoom(); loadOverview(); }
-    else { const data = await r.json(); toast(data.error || 'Lỗi', 'err'); }
-  } catch { toast('Lỗi', 'err'); }
+    const data = await r.json();
+    if (r.ok && data.success) { toast('Đã tạo phòng thành công!', 'ok'); loadRoom(); loadOverview(); }
+    else { toast(data.error || 'Lỗi tạo phòng', 'err'); }
+  } catch { toast('Lỗi kết nối', 'err'); }
 }
 
 async function closeRoom(roomId) {

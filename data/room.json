@@ -1,13 +1,13 @@
 {
-  "id": "b58317d1-36bc-4c0d-a213-dd88fdbf2379",
-  "roomId": "010a3a20",
+  "id": "12724568-f808-4f50-a744-53f2c99dc778",
+  "roomId": "f7ae12a3",
   "hostId": "user-host",
-  "isOpen": false,
+  "isOpen": true,
   "maxGuests": 2,
   "currentGuestIds": [],
   "voiceEnabled": false,
   "guestMicAllowed": false,
   "currentMatchId": "match-001",
-  "createdAt": "2026-06-07T18:20:57.940Z",
-  "closedAt": "2026-06-07T18:21:14.574Z"
+  "createdAt": "2026-06-08T05:16:16.326Z",
+  "closedAt": null
 }

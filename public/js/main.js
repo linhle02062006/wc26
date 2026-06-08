@@ -59,17 +59,24 @@ function fmtDT(d) { return fmtDate(d) + ' - ' + fmtTime(d); }
 
 // Status badge
 function statusBadge(statusVi, statusShort) {
-  if (statusShort === 'LIVE' || statusShort === '1H' || statusShort === '2H' || statusShort === 'HT') return `<span class="badge badge-live">LIVE / ${statusVi}</span>`;
-  if (statusShort === 'FT' || statusShort === 'AET' || statusShort === 'PEN') return `<span class="badge badge-fin">${statusVi}</span>`;
-  return `<span class="badge badge-up">${statusVi}</span>`;
+  const ss = statusShort || '';
+  if (ss === 'LIVE' || ss === '1H' || ss === '2H' || ss === 'HT') return `<span class="badge badge-live">LIVE / ${statusVi}</span>`;
+  if (ss === 'FT' || ss === 'AET' || ss === 'PEN') return `<span class="badge badge-fin">${statusVi}</span>`;
+  return `<span class="badge badge-up">${statusVi || 'Sắp diễn ra'}</span>`;
 }
 
 // Match card
 function matchCard(m, opts = { showFav: true, showAdmin: true }) {
-  const live = m.statusShort === 'LIVE' || m.statusShort === '1H' || m.statusShort === '2H' || m.statusShort === 'HT';
+  const ss = m.statusShort || '';
+  const live = ss === 'LIVE' || ss === '1H' || ss === '2H' || ss === 'HT';
   
-  let homeLogo = m.home?.logo ? `<img src="${m.home.logo}" alt="${m.home.name}" width="32" height="32" style="object-fit:contain; border-radius:50%;">` : `<div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;">${m.home?.name?.substring(0, 3).toUpperCase()}</div>`;
-  let awayLogo = m.away?.logo ? `<img src="${m.away.logo}" alt="${m.away.name}" width="32" height="32" style="object-fit:contain; border-radius:50%;">` : `<div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;">${m.away?.name?.substring(0, 3).toUpperCase()}</div>`;
+  const homeImg = m.home?.flag || m.home?.logo;
+  const awayImg = m.away?.flag || m.away?.logo;
+  const homeCode = m.home?.code || m.home?.name?.substring(0,3) || '?';
+  const awayCode = m.away?.code || m.away?.name?.substring(0,3) || '?';
+  
+  let homeLogo = homeImg ? `<img src="${homeImg}" alt="${m.home?.name||'TBD'}" width="36" height="24" style="object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="width:36px;height:24px;border-radius:4px;background:rgba(255,255,255,0.1);display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700">${homeCode.toUpperCase()}</div>` : `<div style="width:36px;height:24px;border-radius:4px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">${homeCode.toUpperCase()}</div>`;
+  let awayLogo = awayImg ? `<img src="${awayImg}" alt="${m.away?.name||'TBD'}" width="36" height="24" style="object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="width:36px;height:24px;border-radius:4px;background:rgba(255,255,255,0.1);display:none;align-items:center;justify-content:center;font-size:10px;font-weight:700">${awayCode.toUpperCase()}</div>` : `<div style="width:36px;height:24px;border-radius:4px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">${awayCode.toUpperCase()}</div>`;
 
   const isFavMatch = getFavMatches().includes(m.id);
   const favBtn = opts.showFav ? `<button class="fav-btn ${isFavMatch ? 'active' : ''}" onclick="toggleFavMatch('${m.id}', this)" title="Yêu thích trận này"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="${isFavMatch ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg></button>` : '';
@@ -80,21 +87,25 @@ function matchCard(m, opts = { showFav: true, showAdmin: true }) {
     adminBtn = `<button class="btn btn-s" style="padding:4px 8px; font-size:0.75rem;" onclick="adminSelectMatch('${m.id}')">Chọn làm phòng xem</button>`;
   }
 
+  const matchNo = m.matchNo ? `<span style="font-size:.75rem;color:var(--gold);font-weight:700">Trận ${m.matchNo}</span> · ` : '';
+  const countryLabel = m.country ? ` · ${m.country}` : '';
+  const statusV = m.statusVi || 'Sắp diễn ra';
+
   return `<div class="m-card ${live ? 'live' : ''}" data-mid="${m.id}">
     <div class="m-card-hdr">
-      <span>${m.round || ''}${m.group ? ' - ' + m.group : ''}</span>
+      <span>${matchNo}${m.round || ''}${m.group ? ' · ' + m.group : ''}</span>
       <div style="display:flex;gap:8px;align-items:center;">
-        ${statusBadge(m.statusVi, m.statusShort)}
+        ${statusBadge(statusV, ss)}
         ${favBtn}
       </div>
     </div>
     <div class="m-teams">
-      <div class="team"><div class="team-flag">${homeLogo}</div><div class="team-name">${m.home?.name || 'TBD'}</div></div>
-      <div class="m-score"><span style="font-size:1.1rem;color:var(--text);font-weight:bold;">${m.timeVietnam || ''}</span></div>
-      <div class="team"><div class="team-flag">${awayLogo}</div><div class="team-name">${m.away?.name || 'TBD'}</div></div>
+      <div class="team"><div class="team-flag">${homeLogo}</div><div class="team-name">${m.home?.name || 'TBD'}</div><div style="font-size:.7rem;color:var(--text3)">${m.home?.code || ''}</div></div>
+      <div class="m-score"><span style="font-size:1.1rem;color:var(--text);font-weight:bold;">${m.timeVietnam || ''}</span><span style="font-size:.65rem;color:var(--text3);display:block;margin-top:2px">${m.timezoneLabel || ''}</span></div>
+      <div class="team"><div class="team-flag">${awayLogo}</div><div class="team-name">${m.away?.name || 'TBD'}</div><div style="font-size:.7rem;color:var(--text3)">${m.away?.code || ''}</div></div>
     </div>
-    <div class="m-venue" style="margin-top:10px;">${icon('stadium',14)} ${m.venue || 'Chưa xác định'} - ${m.city || ''}</div>
-    <div class="m-time">${m.fullDateVietnam || ''}</div>
+    <div class="m-venue" style="margin-top:10px;">${icon('stadium',14)} ${m.venue || 'Chưa xác định'} · ${m.city || ''}${countryLabel}</div>
+    <div class="m-time">${m.fullDateVietnam || m.dateVietnam || ''}</div>
     ${adminBtn ? `<div class="m-card-actions">${adminBtn}</div>` : ''}
   </div>`;
 }
